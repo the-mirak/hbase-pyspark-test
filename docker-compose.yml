@@ -1,54 +1,32 @@
-version: '3'
-# ============================================================================ #
-# docker-compose.yml
-#
-# This Docker Compose configuration sets up a local development environment
-# for HBase and PySpark integration testing. It creates two containers:
-# 
-# 1. hbase: Runs Apache HBase with Thrift server for data storage
-# 2. pyspark: Runs a Jupyter notebook with PySpark for data processing
-#
-# The containers are networked together to allow communication between
-# the PySpark application and the HBase database.
-#
-# Usage:
-#   docker-compose up -d    # Start containers in detached mode
-#   docker-compose down     # Stop and remove containers
-# ============================================================================ #
 
-services:
-  # HBase service - Provides the NoSQL database
-  hbase:
-    image: harisekhon/hbase          # HBase image with Thrift server enabled
-    container_name: hbase-docker     # Name of the container for easier reference
-    ports:
-      - "2181:2181"  # ZooKeeper - Used for HBase cluster coordination
-      - "8080:8080"  # Web UI - HBase web management interface
-      - "9090:9090"  # Thrift server - Used by Python clients (happybase)
-      - "8085:8085"  # REST server - REST API for HBase
-      - "9095:9095"  # Thrift2 server - Alternative Thrift interface
-    networks:
-      - hbase-network                # Connect to the custom bridge network
-  
-  # PySpark service - Provides data processing capabilities
-  pyspark:
-    image: jupyter/pyspark-notebook  # Jupyter notebook with PySpark pre-installed
-    container_name: pyspark-docker   # Name of the container for easier reference
-    ports:
-      - "8888:8888"  # Jupyter notebook - Web interface for interactive development
-    volumes:
-      - ./scripts:/home/jovyan/work  # Mount scripts directory for code access
-      - ./data:/home/jovyan/data     # Mount data directory for file access
-    depends_on:
-      - hbase                        # Ensure HBase starts before PySpark
-    networks:
-      - hbase-network                # Connect to the same network as HBase
-    environment:
-      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64  # Set JAVA_HOME for PySpark
-    command: >
-      start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''  # Start notebook without authentication
-
-# Define a custom bridge network for container communication
-networks:
-  hbase-network:
-    driver: bridge                  # Use bridge network driver for local development
+ services:
+   hbase:
+     image: harisekhon/hbase
+     container_name: hbase-docker
+     ports:
+       - "2181:2181"  # ZooKeeper
+       - "8080:8080"  # Web UI
+       - "9090:9090"  # Thrift server
+       - "8085:8085"  # REST server
+       - "9095:9095"  # Thrift2 server
+     networks:
+       - hbase-network
+   
+   pyspark:
+     image: jupyter/pyspark-notebook
+     container_name: pyspark-docker
+     ports:
+       - "8888:8888"  # Jupyter notebook
+     volumes:
+       - ./scripts:/home/jovyan/work
+       - ./data:/home/jovyan/data
+     depends_on:
+       - hbase
+     networks:
+       - hbase-network
+     command: >
+       start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+ 
+ networks:
+   hbase-network:
+     driver: bridge

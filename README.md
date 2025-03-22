@@ -9,12 +9,10 @@ hbase-pyspark-test/
 ├── docker-compose.yml       # Docker setup for HBase and PySpark
 ├── requirements.txt         # Python dependencies
 ├── run_hbase_pyspark.sh     # Script to run HBase-PySpark integration in Docker
-├── data/
-│   └── sample_data.csv      # Sample data for PySpark operations
-└── scripts/
+├── data/                    # Directory for sample data
+└── scripts/                 # Directory for Python scripts
     ├── docker-hbase-test.py     # Simple HBase connectivity test
-    ├── hbase-pyspark-script.py  # Main script for HBase-PySpark integration
-    └── run_hbase_pyspark.sh     # Local script for running tests
+    └── hbase-pyspark-script.py  # Main script for HBase-PySpark integration
 ```
 
 ## Prerequisites
@@ -35,66 +33,9 @@ hbase-pyspark-test/
    docker-compose up -d
    ```
 
-This will start:
-- HBase container (`harisekhon/hbase`) with required ports
-- PySpark container (`jupyter/pyspark-notebook`) with mounted volumes
-
-## Running the Demo
-
-### Basic HBase Test
-
-To test simple HBase connectivity and operations:
-
-```bash
-cd scripts
-python3 docker-hbase-test.py
-```
-
-This will:
-- Connect to HBase using the Thrift server
-- Create a test table
-- Insert and read test data
-
-### HBase-PySpark Integration
-
-To run the full HBase-PySpark integration script:
-
-```bash
-# From project root
-chmod +x run_hbase_pyspark.sh
-./run_hbase_pyspark.sh
-```
-
-This script:
-- Runs inside the PySpark Docker container
-- Sets the necessary Java environment
-- Installs required Python packages
-- Connects to HBase using container networking
-- Performs HBase operations
-- Reads data from CSV in the data directory
-- Attempts PySpark-HBase integration
-
-## Scripts Explained
-
-### docker-hbase-test.py
-
-A simple script that:
-- Connects to HBase with retry logic
-- Creates a test table with specified column families
-- Inserts sample data into the table
-- Reads and scans the table to verify data
-
-### hbase-pyspark-script.py
-
-A comprehensive script that demonstrates:
-- HBase connection using HappyBase
-- Table creation and management
-- Data insertion and retrieval
-- PySpark session initialization
-- Reading CSV data into PySpark DataFrames
-- Attempting to read/write between PySpark and HBase
-
-**Note**: Full PySpark-HBase integration requires the HBase connector for Spark, which is not included in the default image. The script handles this limitation gracefully.
+   This will start:
+   - HBase container with required ports
+   - PySpark container with mounted volumes
 
 ## Docker Environment
 
@@ -108,231 +49,254 @@ The Docker setup includes:
   - Provides Jupyter Notebook access (port 8888)
   - Mounts the `scripts` directory as `/home/jovyan/work`
   - Mounts the `data` directory as `/home/jovyan/data`
-  - Has JAVA_HOME configured
 
-## Working with HBase
+## Running the Demo
 
-The demo shows how to:
-- Create tables with column families
-- Insert data with row keys
-- Retrieve single rows by key
-- Scan tables for multiple rows
-- Delete rows or specific columns
+### Basic HBase Test
 
-## Working with PySpark
+To test simple HBase connectivity and operations:
 
-The PySpark part demonstrates:
-- Creating Spark sessions
-- Reading CSV files into DataFrames
-- Configuring DataFrame schemas
-- Mapping DataFrame columns to HBase column families
+```bash
+cd scripts
+python3 docker-hbase-test.py
+```
+
+### HBase-PySpark Integration
+
+To run the full HBase-PySpark integration script:
+
+```bash
+chmod +x run_hbase_pyspark.sh
+./run_hbase_pyspark.sh
+```
+
+## Scripts Explained
+
+### docker-hbase-test.py
+
+A simple script that connects to HBase, creates a test table, and performs basic operations.
+
+### hbase-pyspark-script.py
+
+A comprehensive script that demonstrates:
+- HBase connection using HappyBase
+- Table creation and data operations
+- PySpark session initialization
+- Reading data into PySpark DataFrames
+- Integration between PySpark and HBase
 
 ## Troubleshooting
 
 ### JAVA_HOME Not Set or Java Not Found
-If you encounter JAVA_HOME-related issues such as:
-```
-JAVA_HOME is not set. Skipping PySpark operations.
-```
-or
-```
-/usr/local/spark/bin/spark-class: line 71: /usr/lib/jvm/default-java/bin/java: No such file or directory
-```
 
-#### Solution:
+If you encounter JAVA_HOME-related issues:
 
-1. Use the updated `run_hbase_pyspark.sh` script which auto-detects Java in the Docker container:
+Manually find the correct Java path in the container:
    ```bash
-   chmod +x scripts/run_hbase_pyspark.sh
-   ./scripts/run_hbase_pyspark.sh
-   ```
-
-2. If you need to manually find the correct Java path in the container:
-   ```bash
-   # Connect to the container
    docker exec -it pyspark-docker bash
-   
-   # Find Java location
    which java
    readlink -f $(which java)
-   
-   # Use the path (without /bin/java) as JAVA_HOME
    ```
 
-3. You can also modify the script to specify the correct JAVA_HOME:
+Specify the correct JAVA_HOME when running the script:
    ```bash
-   docker exec -it pyspark-docker bash -c "export JAVA_HOME=/path/to/java && cd /home/jovyan/work && python hbase-pyspark-script.py"
+   docker exec -it pyspark-docker bash -c "export JAVA_HOME=/opt/conda/jre && cd /home/jovyan/work && python hbase-pyspark-script.py"
    ```
 
 ### HBase Connector Missing
-If you see errors like:
+
+If you see errors related to missing HBase connector:
+
 ```
 Failed to find the data source: org.apache.hadoop.hbase.spark
 ```
-or
+
+This is expected, as the HBase connector for Spark is not included in the default Docker image. The script will handle this gracefully and continue with basic operations.
+
+To add the connector:
+
+1. Download the required JARs:
+   ```bash
+   mkdir -p jars
+   wget -P jars https://repo1.maven.org/maven2/org/apache/hbase/hbase-spark/3.0.0/hbase-spark-3.0.0.jar
+   wget -P jars https://repo1.maven.org/maven2/org/apache/hbase/hbase-client/2.4.12/hbase-client-2.4.12.jar
+   wget -P jars https://repo1.maven.org/maven2/org/apache/hbase/hbase-common/2.4.12/hbase-common-2.4.12.jar
+   ```
+
+2. Update docker-compose.yml to mount the jars directory:
+   ```yaml
+   volumes:
+     - ./scripts:/home/jovyan/work
+     - ./data:/home/jovyan/data
+     - ./jars:/home/jovyan/jars
+   ```
+
+3. Use a modified run script that includes the JARs in the classpath.
+
+### Jupyter Notebook Error
+
+If you see errors like:
 ```
-Error reading from HBase: An error occurred while calling o31.load.
-: org.apache.spark.SparkClassNotFoundException: [DATA_SOURCE_NOT_FOUND] Failed to find the data source: org.apache.hadoop.hbase.spark. Please find packages at https://spark.apache.org/third-party-projects.html.
+No such file or directory: /home/jovyan/#
 ```
 
-This is expected, as the HBase connector for Spark is not included in the default Docker image. The connector JAR files are required for direct integration between Spark and HBase.
+Update the docker-compose.yml file:
+```yaml
+command: >
+  bash -c "
+    fix-permissions /home/jovyan &&
+    start-notebook.sh --NotebookApp.token='' --NotebookApp.password='' --NotebookApp.notebook_dir='/home/jovyan/work'
+  "
+```
 
-#### Solution:
+## Running in a Hadoop Environment
 
-1. **Using the demo without the connector**: 
-   - The demo is designed to handle this gracefully and will still perform basic HBase operations even without the connector.
-   - PySpark operations that don't require HBase integration will continue to work.
+For deploying in a production Hadoop environment such as Hortonworks Data Platform (HDP):
 
-2. **Installing the connector (for full functionality)**:
-   - Download the HBase-Spark connector JAR file compatible with your versions of HBase and Spark.
-   - Add the connector JAR to your Spark classpath by modifying the `run_hbase_pyspark.sh` script:
-     ```bash
-     docker exec -it pyspark-docker bash -c "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && \
-     cd /home/jovyan/work && \
-     pip install pyspark==3.4.1 happybase && \
-     spark-submit --jars /path/to/hbase-spark-connector.jar hbase-pyspark-script.py"
-     ```
+### Prerequisites
 
-3. **Creating a custom Docker image**:
-   - For a production setup, build a custom Docker image with the required connector pre-installed.
-   - Add the following to a custom Dockerfile:
-     ```dockerfile
-     FROM jupyter/pyspark-notebook
-     USER root
-     RUN wget https://repo.maven.apache.org/maven2/org/apache/hbase/hbase-client/2.4.12/hbase-client-2.4.12.jar -P /usr/local/spark/jars/ && \
-         wget https://repo.maven.apache.org/maven2/org/apache/hbase/hbase-spark/2.4.12/hbase-spark-2.4.12.jar -P /usr/local/spark/jars/ && \
-         wget https://repo.maven.apache.org/maven2/org/apache/hbase/hbase-common/2.4.12/hbase-common-2.4.12.jar -P /usr/local/spark/jars/
-     USER $NB_UID
-     ```
-
-Note: The connector versions should match your HBase and Spark versions. The example above uses HBase 2.4.12, but you should adjust it according to your environment.
-
-## Extending the Demo
-
-To add HBase-Spark integration capabilities:
-1. Build a custom Docker image with the HBase connector for Spark
-2. Modify docker-compose.yml to use your custom image
-3. Update the run_hbase_pyspark.sh script as needed
-
-## Conclusion
-
-This demo provides a foundation for learning HBase operations and how PySpark can be integrated with HBase. While the complete integration requires additional components, the scripts demonstrate the overall architecture and data flow.
-
-For production use, consider using a more complete Hadoop distribution that includes all necessary components for HBase-Spark integration.
-
-## Running Scripts in a Hadoop Environment (HDP VM or Production)
-
-The scripts provided in this demo can be adapted to run in a Hortonworks Data Platform (HDP) environment or other production Hadoop environments. Here's how to configure and run them outside of Docker:
-
-### Prerequisites for Hadoop Environment
-
-- HDP or other Hadoop distribution with HBase and Spark
-- Python 3.x installed
-- Python packages: `happybase`, `pyspark`
-
-### Installation Steps
-
-1. Install required Python packages:
+1. Install required packages: 
    ```bash
    pip install happybase pyspark
    ```
 
-2. Copy the scripts to your environment:
-   ```bash
-   # Copy the script files to your environment
-   scp scripts/*.py user@hadoop-master:/path/to/destination/
-   scp data/*.csv user@hadoop-master:/path/to/data/
-   ```
+2. Verify HBase and Spark are properly installed on your HDP cluster
+   - Check using Ambari dashboard or command line tools
+   - Ensure HBase Thrift server is running
 
-### Modifying the Scripts for Hadoop
+### Required Modifications
 
-Before running the scripts, you need to adjust the connection parameters:
+#### 1. Connection Settings (HBase)
 
-1. **Update HBase Connection Settings**:
-   - In both scripts (`docker-hbase-test.py` and `hbase-pyspark-script.py`), modify the `connect_to_hbase` function to use your HBase Thrift server:
-     ```python
-     def connect_to_hbase(host='your-hbase-thrift-server', port=9090):
-         # Function code remains the same
-     ```
+In both scripts (`docker-hbase-test.py` and `hbase-pyspark-script.py`), modify the `connect_to_hbase` function:
 
-2. **Update Spark Session Configuration**:
-   - In `hbase-pyspark-script.py`, update the `create_spark_session` function:
-     ```python
-     def create_spark_session():
-         """Create a Spark session configured for HDP environment"""
-         return (SparkSession.builder
-                 .appName("HBase Interaction")
-                 .config("spark.hadoop.hbase.zookeeper.quorum", "your-zookeeper-quorum")
-                 .config("spark.hadoop.hbase.zookeeper.property.clientPort", "2181")
-                 # Add additional Hadoop/HBase configurations as needed
-                 .getOrCreate())
-     ```
+```python
+# FROM:
+def connect_to_hbase(host='hbase', port=9090):
+    # ...existing code...
 
-3. **Configure HBase-Spark Integration**:
-   - For full HBase-Spark integration, add the HBase connector JAR to your Spark configuration:
-     ```python
-     def create_spark_session():
-         return (SparkSession.builder
-                 .appName("HBase Interaction")
-                 .config("spark.hadoop.hbase.zookeeper.quorum", "your-zookeeper-quorum")
-                 .config("spark.hadoop.hbase.zookeeper.property.clientPort", "2181")
-                 .config("spark.jars", "/path/to/hbase-spark-connector.jar")
-                 .getOrCreate())
-     ```
+# TO:
+def connect_to_hbase(host='your-hbase-thrift-server-hostname', port=9090):
+    # ...keep the rest of the function the same...
+```
 
-4. **Update CSV File Path**:
-   - Modify the path to your CSV data file:
-     ```python
-     csv_path = "/path/to/data/sample_data.csv"
-     ```
+> **Note**: Replace 'your-hbase-thrift-server-hostname' with your actual HBase Thrift server hostname. 
+> Get this from Ambari UI or by running `hostname -f` on the HBase Thrift server node.
 
-### Running the Scripts in Hadoop
+#### 2. Spark Session Configuration
 
-1. **Basic HBase Test**:
-   ```bash
-   python3 docker-hbase-test.py
-   ```
+In `hbase-pyspark-script.py`, update the `create_spark_session` function:
 
-2. **HBase-PySpark Integration Script**:
-   ```bash
-   # If using Spark Submit
-   spark-submit --jars /path/to/hbase-connector.jar hbase-pyspark-script.py
-   
-   # Or directly with Python if your environment is properly configured
-   python3 hbase-pyspark-script.py
-   ```
+```python
+# FROM:
+def create_spark_session():
+    return (SparkSession.builder
+            .appName("HBase Interaction")
+            .getOrCreate())
 
-### Integration with Ambari or Cloudera Manager
+# TO:
+def create_spark_session():
+    return (SparkSession.builder
+            .appName("HBase Interaction")
+            .config("spark.hadoop.hbase.zookeeper.quorum", "zk1.example.com,zk2.example.com,zk3.example.com")
+            .config("spark.hadoop.hbase.zookeeper.property.clientPort", "2181")
+            .config("spark.hadoop.hbase.mapreduce.inputtable", "user_data")
+            # If using HDP's Spark, you might need additional configs
+            .getOrCreate())
+```
 
-If you're using Ambari (HDP) or Cloudera Manager:
+> **Note**: 
+> - Get the ZooKeeper quorum from Ambari → HBase → Configs → Advanced → hbase-site.xml 
+> - Look for the property `hbase.zookeeper.quorum`
+> - Adjust client port if your cluster uses a non-default port
 
-1. You can submit the script as a Spark job through the management UI
-2. Schedule it as a recurring job using Oozie workflows
-3. Set up appropriate resource allocation through YARN
+#### 3. Add HBase Connector for Spark
 
-### Additional Hadoop-Specific Considerations
+For HDP, the connector JARs may be available in your cluster already, but you need to specify them:
 
-1. **Security**: If your Hadoop cluster uses Kerberos authentication:
-   ```python
-   # Add this to your create_spark_session function
-   .config("spark.yarn.principal", "your-principal")
-   .config("spark.yarn.keytab", "/path/to/your.keytab")
-   ```
+```python
+# In create_spark_session function, add:
+.config("spark.jars", "/usr/hdp/current/hbase-client/lib/hbase-spark-connector.jar,/usr/hdp/current/hbase-client/lib/hbase-client.jar")
+```
 
-2. **Resource Management**: Configure appropriate resource allocation:
-   ```python
-   # Add these to your create_spark_session function
-   .config("spark.executor.memory", "4g")
-   .config("spark.executor.cores", "2")
-   .config("spark.driver.memory", "2g")
-   ```
+> **Note**: Verify actual JAR locations on your HDP cluster using:
+> `find /usr/hdp -name "hbase-*.jar" | grep -E "client|spark"`
 
-3. **HBase Namespace**: If using a specific HBase namespace, update catalog configurations:
-   ```python
-   catalog = {
-       "table": {"namespace": "your_namespace", "name": table_name},
-       # Rest of the catalog configuration
-   }
-   ```
+#### 4. For Secure Clusters (Kerberos)
 
-By following these guidelines, you can successfully adapt the demonstration scripts to run in a full Hadoop environment, taking advantage of enterprise features like security, resource management, and high availability. 
+If your HDP cluster uses Kerberos security:
+
+```python
+# Add to create_spark_session:
+.config("spark.yarn.principal", "user@REALM.COM")
+.config("spark.yarn.keytab", "/path/to/user.keytab")
+```
+
+> **Note**: 
+> - Replace with your Kerberos principal and keytab location
+> - Ensure you've run `kinit` before executing the script if not using keytab
+
+### Running the Script
+
+#### Option 1: Using spark-submit (Recommended)
+
+```bash
+# First, authenticate if using Kerberos
+kinit -kt /path/to/keytab user@REALM.COM
+
+# Run with spark-submit
+spark-submit \
+  --master yarn \
+  --deploy-mode client \
+  --jars /usr/hdp/current/hbase-client/lib/hbase-client.jar,/usr/hdp/current/hbase-client/lib/hbase-common.jar,/usr/hdp/current/hbase-client/lib/hbase-protocol.jar,/usr/hdp/current/hbase-client/lib/hbase-server.jar \
+  --files /etc/hbase/conf/hbase-site.xml \
+  --conf spark.driver.memory=2g \
+  --conf spark.executor.memory=4g \
+  hbase-pyspark-script.py
+```
+
+#### Option 2: Using Ambari/Oozie
+
+1. Create a workflow.xml file for Oozie
+2. Configure the Spark action with necessary JARs and configurations
+3. Submit through the Ambari UI or oozie CLI
+
+### Resource Optimization
+
+For production workloads, adjust resource allocation:
+
+```bash
+spark-submit \
+  --master yarn \
+  --deploy-mode cluster \
+  --executor-memory 4g \
+  --executor-cores 2 \
+  --driver-memory 2g \
+  --num-executors 10 \
+  --conf spark.dynamicAllocation.enabled=true \
+  --conf spark.shuffle.service.enabled=true \
+  --conf spark.dynamicAllocation.minExecutors=5 \
+  --conf spark.dynamicAllocation.maxExecutors=20 \
+  hbase-pyspark-script.py
+```
+
+> **Note**: Adjust memory and core settings based on your cluster capacity and workload requirements.
+
+### Troubleshooting HDP-specific Issues
+
+1. **ClassNotFoundException for HBase connector**:
+   - Verify connector JAR paths in your HDP installation
+   - Add additional JARs from `/usr/hdp/current/hbase-client/lib/` if needed
+
+2. **Authentication failures**:
+   - Check Kerberos ticket: `klist`
+   - Renew if expired: `kinit`
+   - Ensure proper permissions for keytab files
+
+3. **ZooKeeper connection issues**:
+   - Verify ZooKeeper is running: `echo stat | nc zk-host 2181`
+   - Check network connectivity between execution node and ZooKeeper
+
+4. **HBase region server connectivity**:
+   - Verify HBase region servers are up in Ambari
+   - Check logs at `/var/log/hbase/` 
