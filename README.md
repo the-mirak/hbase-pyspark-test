@@ -85,6 +85,22 @@ A comprehensive script that demonstrates:
 - Reading data into PySpark DataFrames
 - Integration between PySpark and HBase
 
+### Comprehensive Final Test
+
+The `final-test.py` script provides a comprehensive test of the entire HBase-PySpark integration. It:
+- Connects to HBase with retry logic
+- Creates and manages test tables
+- Inserts test data
+- Creates and demonstrates PySpark DataFrames
+- Tests the full integration workflow
+
+To run this test in the Docker environment:
+
+1. Run it using the Docker container:
+   ```bash
+   docker exec -it pyspark-docker bash -c "cd /home/jovyan/work && python final-test.py"
+   ```
+
 ## Troubleshooting
 
 ### JAVA_HOME Not Set or Java Not Found
@@ -235,6 +251,41 @@ If your HDP cluster uses Kerberos security:
 > **Note**: 
 > - Replace with your Kerberos principal and keytab location
 > - Ensure you've run `kinit` before executing the script if not using keytab
+
+### Running final-test.py in HDP Environment
+
+To run the final test in an HDP environment:
+
+1. Modify the connection settings in the script:
+   ```python
+   def connect_to_hbase(host='your-hbase-thrift-server', port=9090, timeout=30):
+       # Function body stays the same
+   ```
+
+2. Update the Spark session configuration:
+   ```python
+   def create_spark_session():
+       # Path to JARs - update this to the HDP path
+       jar_dir = "/usr/hdp/current/hbase-client/lib"
+       
+       # Update ZooKeeper configuration
+       spark_builder = (SparkSession.builder
+                      .appName("HDP HBase Test")
+                      .config("spark.hadoop.hbase.zookeeper.quorum", "zk1.example.com,zk2.example.com,zk3.example.com")
+                      .config("spark.hadoop.hbase.zookeeper.property.clientPort", "2181"))
+       
+       # Rest of function stays the same
+   ```
+
+3. Run with spark-submit:
+   ```bash
+   spark-submit \
+     --master yarn \
+     --deploy-mode client \
+     --jars $(find /usr/hdp/current/hbase-client/lib -name "hbase-*.jar" | tr '\n' ',') \
+     --files /etc/hbase/conf/hbase-site.xml \
+     final-test.py
+   ```
 
 ### Running the Script
 
