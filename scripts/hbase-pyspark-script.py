@@ -56,7 +56,7 @@ def create_spark_session():
             .config("spark.hadoop.hbase.zookeeper.property.clientPort", "2181")
             .getOrCreate())
 
-def connect_to_hbase(host='hbase', port=9090):
+def connect_to_hbase(host=None, port=9090):
     """Establish connection to HBase
     
     Creates a connection to the HBase Thrift server. This is the entry point
@@ -64,7 +64,7 @@ def connect_to_hbase(host='hbase', port=9090):
     
     Args:
         host (str): Hostname or IP address of HBase Thrift server
-                  Default is 'hbase' for Docker environments
+                  Default is environment-specific (hbase in Docker, localhost otherwise)
         port (int): Port number of HBase Thrift server
                   Default is 9090
                   
@@ -74,6 +74,14 @@ def connect_to_hbase(host='hbase', port=9090):
     Raises:
         SystemExit: If connection cannot be established
     """
+    # Determine the appropriate host based on environment
+    if host is None:
+        # Check if we're in Docker or running locally
+        if os.path.exists('/.dockerenv'):
+            host = 'hbase'  # Use Docker service name
+        else:
+            host = 'localhost'  # Use localhost for direct execution
+            
     try:
         connection = happybase.Connection(host=host, port=port)
         print(f"Successfully connected to HBase at {host}:{port}")
@@ -410,7 +418,27 @@ def main():
     scan_table(connection, 'user_data')
     
     # Check if we can use PySpark
+    java_home_missing = False
     if 'JAVA_HOME' not in os.environ:
+        # Try to auto-detect JAVA_HOME in common locations
+        common_java_homes = [
+            '/usr/lib/jvm/java-11-openjdk-amd64',
+            '/usr/lib/jvm/java-8-openjdk-amd64',
+            '/usr/local/openjdk-11',
+            '/usr/local/openjdk-8',
+            '/opt/java/openjdk'
+        ]
+        
+        for path in common_java_homes:
+            if os.path.exists(path):
+                os.environ['JAVA_HOME'] = path
+                print(f"\nAuto-detected JAVA_HOME: {path}")
+                java_home_missing = False
+                break
+        else:
+            java_home_missing = True
+
+    if java_home_missing:
         print("\nJAVA_HOME is not set. Skipping PySpark operations.")
         print("To run PySpark operations, set JAVA_HOME environment variable.")
         return

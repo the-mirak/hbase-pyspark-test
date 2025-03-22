@@ -129,12 +129,40 @@ The PySpark part demonstrates:
 
 ## Troubleshooting
 
-### JAVA_HOME Not Set
-If you encounter JAVA_HOME issues:
+### JAVA_HOME Not Set or Java Not Found
+If you encounter JAVA_HOME-related issues such as:
 ```
 JAVA_HOME is not set. Skipping PySpark operations.
 ```
-The script will skip PySpark operations but still perform HBase operations.
+or
+```
+/usr/local/spark/bin/spark-class: line 71: /usr/lib/jvm/default-java/bin/java: No such file or directory
+```
+
+#### Solution:
+
+1. Use the updated `run_hbase_pyspark.sh` script which auto-detects Java in the Docker container:
+   ```bash
+   chmod +x scripts/run_hbase_pyspark.sh
+   ./scripts/run_hbase_pyspark.sh
+   ```
+
+2. If you need to manually find the correct Java path in the container:
+   ```bash
+   # Connect to the container
+   docker exec -it pyspark-docker bash
+   
+   # Find Java location
+   which java
+   readlink -f $(which java)
+   
+   # Use the path (without /bin/java) as JAVA_HOME
+   ```
+
+3. You can also modify the script to specify the correct JAVA_HOME:
+   ```bash
+   docker exec -it pyspark-docker bash -c "export JAVA_HOME=/path/to/java && cd /home/jovyan/work && python hbase-pyspark-script.py"
+   ```
 
 ### HBase Connector Missing
 If you see errors like:
