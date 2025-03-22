@@ -37,6 +37,6 @@ else
     fi
 fi
 
-echo \"Using JAVA_HOME: \$JAVA_HOME\"
+echo \"*******Using JAVA_HOME: \$JAVA_HOME\"
 cd /home/jovyan/work && python hbase-pyspark-script.py
 " 

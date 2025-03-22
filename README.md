@@ -169,7 +169,43 @@ If you see errors like:
 ```
 Failed to find the data source: org.apache.hadoop.hbase.spark
 ```
-This is expected as the HBase connector for Spark is not included in the default image. In a production environment, you would need to add the appropriate connector JAR.
+or
+```
+Error reading from HBase: An error occurred while calling o31.load.
+: org.apache.spark.SparkClassNotFoundException: [DATA_SOURCE_NOT_FOUND] Failed to find the data source: org.apache.hadoop.hbase.spark. Please find packages at https://spark.apache.org/third-party-projects.html.
+```
+
+This is expected, as the HBase connector for Spark is not included in the default Docker image. The connector JAR files are required for direct integration between Spark and HBase.
+
+#### Solution:
+
+1. **Using the demo without the connector**: 
+   - The demo is designed to handle this gracefully and will still perform basic HBase operations even without the connector.
+   - PySpark operations that don't require HBase integration will continue to work.
+
+2. **Installing the connector (for full functionality)**:
+   - Download the HBase-Spark connector JAR file compatible with your versions of HBase and Spark.
+   - Add the connector JAR to your Spark classpath by modifying the `run_hbase_pyspark.sh` script:
+     ```bash
+     docker exec -it pyspark-docker bash -c "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 && \
+     cd /home/jovyan/work && \
+     pip install pyspark==3.4.1 happybase && \
+     spark-submit --jars /path/to/hbase-spark-connector.jar hbase-pyspark-script.py"
+     ```
+
+3. **Creating a custom Docker image**:
+   - For a production setup, build a custom Docker image with the required connector pre-installed.
+   - Add the following to a custom Dockerfile:
+     ```dockerfile
+     FROM jupyter/pyspark-notebook
+     USER root
+     RUN wget https://repo.maven.apache.org/maven2/org/apache/hbase/hbase-client/2.4.12/hbase-client-2.4.12.jar -P /usr/local/spark/jars/ && \
+         wget https://repo.maven.apache.org/maven2/org/apache/hbase/hbase-spark/2.4.12/hbase-spark-2.4.12.jar -P /usr/local/spark/jars/ && \
+         wget https://repo.maven.apache.org/maven2/org/apache/hbase/hbase-common/2.4.12/hbase-common-2.4.12.jar -P /usr/local/spark/jars/
+     USER $NB_UID
+     ```
+
+Note: The connector versions should match your HBase and Spark versions. The example above uses HBase 2.4.12, but you should adjust it according to your environment.
 
 ## Extending the Demo
 
