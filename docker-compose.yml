@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  hbase:
+    image: harisekhon/hbase
+    container_name: hbase-docker
+    ports:
+      - "2181:2181"  # ZooKeeper
+      - "8080:8080"  # Web UI
+      - "9090:9090"  # Thrift server
+      - "8085:8085"  # REST server
+      - "9095:9095"  # Thrift2 server
+    networks:
+      - hbase-network
+  
+  pyspark:
+    image: jupyter/pyspark-notebook
+    container_name: pyspark-docker
+    ports:
+      - "8888:8888"  # Jupyter notebook
+    volumes:
+      - ./scripts:/home/jovyan/work
+      - ./data:/home/jovyan/data
+    depends_on:
+      - hbase
+    networks:
+      - hbase-network
+    command: >
+      start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+
+networks:
+  hbase-network:
+    driver: bridge
